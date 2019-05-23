@@ -1,0 +1,517 @@
+%%
+load('C:\Users\owner\Dropbox\lab\progs\Maor et al\Educage\EducageTablePT.mat')
+
+
+mice=unique(EducageTable.mouse_num);
+for nn=1:length(mice)
+   micename{nn,1}= EducageTable.mouse_name(find(EducageTable.mouse_num==mice(nn),1,'first'),:);
+end
+%%
+%activity histogram- Fig S1B
+
+clear clock
+clear ITI
+curLevel=-1;%if you want specific level, chnge line 25
+for n=1:length(mice)
+    
+        textdata=EducageTable.time(EducageTable.mouse_num==n&EducageTable.level~=curLevel);
+totTrials(n)=length(textdata);
+        [clock{n},ITI{n},rmStr]=findclock(textdata);
+        temp=unique(clock{n}(:,4));
+        choosedate=temp(temp>temp(1) &temp<temp(end));
+        chosen_trials=[];
+        for bb=1:length(choosedate)
+            chosen_trials=[chosen_trials;find(clock{n}(:,4)==choosedate(bb))];
+        end
+        clockL=clock{n}(chosen_trials,:);
+        hours=0:23;
+        for hh=1:length(hours)
+            Activity(n,hh)=sum(clockL(:,1)==hours(hh))./length(choosedate);
+        end
+end
+indayTotal=nanmean(sum(Activity,2))
+nanstd(sum(Activity,2))
+
+rightOrd=[13:24 1:12];
+Activity=Activity(:,rightOrd);
+temp=sum(Activity(:,7:18),2)./sum(Activity,2);
+precInNight=nanmean(temp*100)
+nanstd(temp*100)
+figure('name','Fig S1B Activity histogram')
+set(gcf,'color',[1 1 1])
+hold all
+bar(nanmean(Activity),'k')
+errorbar(nanmean(Activity),nanstd(Activity)./sqrt(length(mice)),'linestyle','none','color','k')
+set(gca,'fontsize',12,'box','off','xtick',[4:4:24],'xticklabel',num2str(rightOrd([4:4:24])'))
+
+%%
+%d prime of all mice in first level (Fig. 1B)
+numtrials=1000;
+alldp = NaN(50);
+binsize=20;
+clear sTR
+clear sNTR
+sTR=nan(length(mice),numtrials/binsize);
+sNTR=nan(length(mice),numtrials/binsize);
+    
+clear m
+AllSpikeind=nan(1,40)
+AllmaxD=nan(1,40)
+for n=1:length(mice)
+
+        clear dp
+    hold all
+          set(gcf,'color',[1 1 1])
+score{n}=EducageTable.score(EducageTable.mouse_num==n);
+      Level{n}=EducageTable.level(EducageTable.mouse_num==n);
+      allL=unique(EducageTable.level(EducageTable.mouse_num==n));
+levels2work=1;
+
+chosen_trials=find(Level{n}==levels2work,numtrials,'first');
+
+biningL=Level{n}(chosen_trials);
+bining=zeros(1,length(biningL));
+
+ binind=1:binsize:length(bining);
+for b=1:length(binind)-1
+    bining(binind(b):end)=bining(binind(b):end)+1;
+end
+
+bining=bining';
+  [hit, miss,fa,cr,trL,ntrL,newcorrect,correct]=find_ratios4(bining,score{n}(chosen_trials));  
+dp=find_dprime(trL,ntrL,binsize);
+[dMax, dMaxInd]=max(dp);
+thresh=1;
+spike_thresh = find((dp(1:end-1)>thresh)& dp(2:end)>thresh,1,'first');
+spike_ind=spike_thresh;
+
+alldp(n,1:length(dp))=dp;
+AllSpikeind(n)=spike_ind;
+AllmaxD(n)=dMax;
+
+m(n)=(dp(spike_ind)-dp(1))/(spike_ind*binsize);
+m(n)=(dp(end)-dp(spike_ind))/(length(dp)-spike_ind);
+nanmean(m)
+ set(gca,'fontsize',12,'box','off','ytick',[0:3])
+end
+
+figure('name','Fig. 1B d prime in first level')
+hold all
+plot(smooth(nanmean(alldp(:,1:24)),1),'color','k','linewidth',2)
+errorbar(nanmean(alldp(:,1:24)),nanstd(alldp(:,1:24))/sqrt(length(mice)),'color','k','linewidth',2)
+
+plot(smooth(alldp(10,1:24),5),'marker','o','markeredgecolor','k','linestyle',':','color','k')
+plot(smooth(alldp(32,1:22),5),'marker','square','markeredgecolor','k','linestyle',':','color','k')
+plot(smooth(alldp(8,1:24),5),'marker','^','markeredgecolor','k','linestyle',':','color','k')
+
+ set(gca,'fontsize',12,'box','off','xtick',[])
+ %%
+%Learninig curves of few mice in level 1- Fig. S1c
+numtrials=1800;
+binsize=20;
+clear sTR
+clear sNTR
+
+sTR=nan(length(mice),length(levels2work),numtrials/binsize);
+sNTR=nan(length(mice),length(levels2work),numtrials/binsize);
+
+figure('name','Fig. S1c')
+
+          set(gcf,'color',[1 1 1])
+          markers1={'o','square','^'}
+i=0
+   for n=[10 32 3];
+       i=i+1
+   score{n}=EducageTable.score(EducageTable.mouse_num==n);
+      Level{n}=EducageTable.level(EducageTable.mouse_num==n);
+      allL=unique(EducageTable.level(EducageTable.mouse_num==n));
+     levels2work=allL(allL>0&allL<10);
+for ct=1
+chosen_trials=find(Level{n}==levels2work(ct),numtrials,'first');
+
+biningL=Level{n}(chosen_trials);
+bining=zeros(1,length(biningL));
+
+ binind=1:binsize:length(bining);
+for b=1:length(binind)-1
+    bining(binind(b):end)=bining(binind(b):end)+1;
+end
+
+bining=bining';
+  [hit, miss,fa,cr,trL,ntrL,newcorrect,correct]=find_ratios4(bining,score{n}(chosen_trials));  
+find_dprime(trL,ntrL,binsize);
+plot(smooth(trL,5),'color','k','linewidth',1,'linestyle','-','marker',markers1{i},'markerfacecolor','k')%,'linewidth',2)
+ hold on 
+ plot(smooth(ntrL,5),'color','k','linewidth',1,'linestyle',':','marker',markers1{i},'markerfacecolor','none')%,'linewidth',2)
+ylim([0 1])
+  sTR(n,ct,1:length(smooth(trL,5)))=smooth(trL,5);
+   sNTR(n,ct,1:length(smooth(ntrL,5)))=smooth(ntrL,5);
+end
+   end
+ set(gca,'Ytick',[0.5 1],'yticklabel',{'',''},'xtick',length(trL),'xticklabel',num2str((length(trL))*binsize),'fontsize',10,'box','off')
+xlim([0 21])
+%%
+%Learning curve- Fig.1c
+binsize=100
+for n=38 
+    %for n=1:39
+   score{n}=EducageTable.score(EducageTable.mouse_num==n);
+      Level{n}=EducageTable.level(EducageTable.mouse_num==n);
+      allL=unique(EducageTable.level(EducageTable.mouse_num==n));
+   
+levels2work=[1:3 4 5 8 9];
+levels2work=[1:3 4 5];
+
+  figure('name','Learning curve- Fig.1c')
+  
+%           for ii = 1:6; axes(ha(ii)); plot(randn(10,ii)); end
+          set(gcf,'color',[1 1 1])
+          ii=0
+          ll=0
+for ct=1:length(levels2work)
+chosen_trials=find(Level{n}==levels2work(ct),numtrials,'first');
+if isempty(chosen_trials)
+    continue
+end
+ll=ll+1
+biningL=Level{n}(chosen_trials);
+bining=zeros(1,length(biningL));
+
+ binind=1:binsize:length(bining);
+for b=1:length(binind)-1
+    bining(binind(b):end)=bining(binind(b):end)+1;
+end
+
+bining=bining';
+  [hit, miss,fa,cr,trL,ntrL,newcorrect,correct]=find_ratios4(bining,score{n}(chosen_trials));  
+[dPrime{n}{ct} c_bias]=find_dprime(trL,ntrL,binsize);
+
+  tt=length(trL)
+plot(ii+5:ii+4+tt,smooth(trL,3),'color','k','linewidth',3,'linestyle','-')%,'linewidth',2)
+ hold on 
+ plot(ii+5:ii+4+tt,smooth(ntrL,3),'color','k','linewidth',3,'linestyle',':')%,'linewidth',2)
+ ii=ii+4+tt
+end
+ylim([0 1])
+ set(gca,'Ytick',[0.5 1],'yticklabel',{'',''},'xtick',[],'fontsize',12,'box','off')
+
+end
+
+
+%%
+%comparing begining and end of level performences (Fig. 1d-e)
+%1st third Vs last third
+binsize=40;
+LevNum=13;
+dPrimeL=nan(length(mice),LevNum);
+dPrimeLmiddle=nan(length(mice),LevNum);
+dPrimeLfirst=nan(length(mice),LevNum);
+BiasLfirst=nan(length(mice),LevNum);
+BiasLlast=nan(length(mice),LevNum);
+
+for n=1:length(mice)
+    
+    cur_t=EducageTable(EducageTable.mouse_num==n,:);
+    ff=unique(cur_t.freq_played);
+
+allL=unique(cur_t.level);
+
+levels2work=allL(allL>=1&allL<10);
+%1st third
+chosen_trials=[];
+for ct=1:length(levels2work)
+    cv=find(cur_t.level==levels2work(ct));
+   th=floor(length(cv)/3);
+chosen_trials=[chosen_trials;cv(1:th)];
+end
+biningL=cur_t.level(chosen_trials);
+  [hit, miss,fa,cr,trL,ntrL,newcorrect,correct]=find_ratios4(biningL,cur_t.score(chosen_trials)); 
+  [temp c_bias]=find_dprime(trL,ntrL,binsize);
+
+dPrimeLfirst(n,levels2work)=temp;
+BiasLfirst(n,levels2work)=c_bias;
+%2nd third
+chosen_trials=[];
+for ct=1:length(levels2work)
+    cv=find(cur_t.level==levels2work(ct));
+   th=floor(length(cv)/3);
+chosen_trials=[chosen_trials;cv(th+1:th*2)];
+end
+biningL=cur_t.level(chosen_trials);
+  [hit, miss,fa,cr,trL,ntrL,newcorrect,correct]=find_ratios4(biningL,cur_t.score(chosen_trials)); 
+  [temp c_bias]=find_dprime(trL,ntrL,binsize);
+dPrimeLmiddle(n,levels2work)=temp;
+
+%last third
+chosen_trials=[];
+for ct=1:length(levels2work)
+ cv=find(cur_t.level==levels2work(ct));
+   th=floor(length(cv)/3);
+chosen_trials=[chosen_trials;cv(th*2+1:th*3)];
+end
+biningL=cur_t.level(chosen_trials);
+  [hit, miss,fa,cr,trL,ntrL,newcorrect,correct]=find_ratios4(biningL,cur_t.score(chosen_trials));  
+  [temp c_bias]=find_dprime(trL,ntrL,binsize);
+  dPrimeL(n,levels2work)=temp;
+  BiasLlast(n,levels2work)=c_bias;
+end
+
+markers={'o','square','v','^','<','>','*','d','+','x'};
+
+numc=7;
+tempcolor=linspace(0,1,numc)';
+colors=[tempcolor  tempcolor(end:-1:1) zeros(numc,1)];
+colors=[colors;colors(2,:)];
+colors=[colors;colors(3,:)]
+
+  figure('name','Fig.1d')
+
+
+hold all
+clear dPrimeLClean
+df=[49 26 14 10 8 6 3];
+%finding last level in JND range
+for hh=1:size(dPrimeL,1)
+    JNDdF(hh)=df(find(dPrimeL(hh,:)<1.04,1,'first'))
+    if ~isempty(find(~isnan(dPrimeL(hh,[4:7])),1,'last'))
+    dJND(hh)=dPrimeL(hh,3+find(~isnan(dPrimeL(hh,[4:7])),1,'last'));
+        dJND1(hh)=dPrimeLfirst(hh,3+find(~isnan(dPrimeLfirst(hh,[4:7])),1,'last'));
+    dJND2(hh)=dPrimeLmiddle(hh,3+find(~isnan(dPrimeLmiddle(hh,[4:7])),1,'last'));
+
+    else
+      dJND(hh)=nan;
+      dJND2(hh)=nan;
+      dJND1(hh)=nan;
+    end
+end
+dPrimeLClean=[dPrimeL(:,[1:3]) dJND'];
+dPrimeLClean1=[dPrimeLfirst(:,[1:3]) dJND1' ];
+dPrimeLClean2=[dPrimeLmiddle(:,[1:3]) dJND2' ];
+
+numc=4;
+tempcolor=linspace(0,1,numc)';
+colors2=[tempcolor(end:-1:1)  tempcolor(end:-1:1) tempcolor(end:-1:1)];
+
+hold all
+meand=nanmean(dPrimeLClean);
+yx=meand(~isnan(meand));
+ errorbar(yx,nanstd(dPrimeLClean)./sqrt(sum(~isnan(dPrimeLClean))),'color','k','LineWidth',2,'linestyle','none')
+ for nn=1:length(yx)
+     bar(nn,yx(nn),'FaceColor',colors2(nn,:),...
+    'EdgeColor','k',...
+    'LineWidth',0.5);
+ end
+
+    set(gca,'Ytick',[-1:4],'Xtick',[],'fontsize',12,'box','off')
+ylabel('d''','fontsize',15)
+xlim([0 5])
+ylim([0 3])
+figure
+     boxplot(dPrimeLClean)
+set(gca,'Ytick',[-1:4],'Xtick',[],'fontsize',12,'box','off')
+ylabel('d''','fontsize',15)
+xlim([0 5])
+ylim([-1 4])
+
+%plot d' begining V end of level
+  figure('name','Fig.1e')
+
+hold all
+for LL=1:3
+    for nn=1:length(dPrimeLClean1(:,LL))
+plot(dPrimeLClean1(nn,LL),dPrimeLClean2(nn,LL),'o','markerFaceColor',colors2(LL,:),...
+    'markerEdgeColor','k')
+    end
+end
+plot([0 4],[0 4],'k')
+xlim([0 4.5])
+%%
+%Psychometric curve: Fig. 1f
+
+
+TR{1}=nan(length(mice),10);
+TR{2}=nan(length(mice),10);
+
+clear UniqueF
+%for n=1:length(mice)
+   for n=22:31
+     index_selected_level=[10 11 12]
+     tmpTable=EducageTable(EducageTable.mouse_num==n,:);
+    temp=find(tmpTable.level==index_selected_level(2)| tmpTable.level==index_selected_level(3));
+    if~isempty(temp)
+score=tmpTable.score(temp);
+      Level=tmpTable.level(temp);
+            PlayedFreqs=tmpTable.freq_played(temp);
+TR=Psychometric_curve(Level,score,index_selected_level,PlayedFreqs,n,TR);
+UniqueF(n,:)=unique(PlayedFreqs);
+
+    end
+end
+UniqueF=UniqueF(22,:);
+
+chooselCol=[2 4];
+oldTR=TR;
+clear param
+clear param2
+
+  figure('name','Fig.1f')
+
+for ll=1:length(TR)
+    hold all
+ curmice=27:31;
+for bb=1:length(curmice)
+    DFd=1-TR{ll}(curmice(bb),:)./repmat(TR{ll}(curmice(bb),10),1,10)
+[param{ll}(bb,:),stat{ll}]=sigm_fit(1:length(UniqueF),flip(DFd),[],[],0,colors2(chooselCol(ll),:));
+plo=(stat{ll}.ypred-repmat(stat{ll}.ypred(1),10,1))./repmat(stat{ll}.ypred(end)-stat{ll}.ypred(1),10,1);
+plot(plo,'color',colors2(chooselCol(ll),:),'linewidth',2)
+   AllPlo(bb,:)= plo;
+end
+
+end
+set(gca,'Ytick',[0 0.5 1 1.5],'yticklabel',{'0','50','100','150'},'Xtick',[1:length(UniqueF)],'xticklabel',num2str(flip(round((log2(UniqueF(end)'./UniqueF))*100)')),'fontsize',12,'box','off')
+ylim([-0.0 1.0])
+% 
+% figure
+%  [Me,Std,Sizes,Medi]=plot4groups_ranksum({param{1}(:,3),param{2}(:,3)},1)
+%  figure
+%   [Me,Std,Sizes,Medi]=plot4groups_ranksum({param{1}(:,4),param{2}(:,4)},1)
+
+
+%%
+%control for graduality: Fig. 1g
+Grad=dPrimeL(21:33,[1 4]);
+  figure('name','Fig.1g')
+
+hold all
+for n=1:size(Grad,1)
+        plot(Grad(n,:),'marker','o','markerfacecolor','none','markeredgecolor','k','markersize',10,'color','k')
+end
+for n=1:size(Direct,1)
+        plot(Direct(n,:),'marker','o','markerfacecolor','k','markeredgecolor','k','markersize',10,'color','k')
+end
+    set(gca,'Xtick',[],'fontsize',12,'box','off')
+ylabel('d''','fontsize',15)
+xlim([0.5 2.5])
+% figure
+% [Me,Std,Sizes,Medi]=plot4groups_ranksum({Grad(:,2),Direct(:,2)},1)
+% figure
+% [Me,Std,Sizes,Medi]=plot4groups_ranksum({Grad(:,1),Direct(:,1)},1)
+
+
+
+%%
+%IR and Licks: Fig. S1d
+TD=3000;% trial duration
+TD1=3000/20;% divide by the magnitude of down sampling
+%prepere variable with maximal number of levels
+DT=nan(length(mice),9);AlllastIRCR=nan(length(mice),9);LT=nan(length(mice),9);LastlickCR=nan(length(mice),9);FirstlickHit=nan(length(mice),9);IRTm=nan(length(mice),TD,9);IRNm=nan(length(mice),TD,9);LickNm=nan(length(mice),TD1,9);LickTm=nan(length(mice),TD1,9);
+DT1=nan(length(mice),9);AlllastIRCR1=nan(length(mice),9);
+DT2=nan(length(mice),9);AlllastIRCR2=nan(length(mice),9);
+
+for n=[21:31 33]  
+ cur_t=EducageTable(EducageTable.mouse_num==n,:);
+   allL=unique(cur_t.level);
+  levels2work=allL(allL>=1&allL<=4);
+
+for ct=1:length(levels2work)
+    cv=find(cur_t.level==levels2work(ct));
+   th=floor(length(cv)/2);
+chosen_trials=cv(th+1:end);
+chosen_trials=cv;
+[DT(n,levels2work(ct)), AlllastIRCR(n,levels2work(ct)),LT(n,levels2work(ct)),LastlickCR(n,levels2work(ct)),FirstlickHit(n,levels2work(ct)),IRTm(n,:,levels2work(ct)),IRNm(n,:,levels2work(ct)),LickTm(n,:,levels2work(ct)),LickNm(n,:,levels2work(ct))]=find_IR_licks(cur_t,chosen_trials,TD);%
+end
+end
+
+ clear DTCLEAN
+DTCLEAN(:,:,1)=[LT(:,[1:4],1)];
+  figure('name','Fig.S1d')
+
+hold all
+meand=nanmean(DTCLEAN(:,:,1));
+yx=meand(~isnan(meand));
+ errorbar(yx,nanstd(DTCLEAN(:,:,1))./sqrt(sum(~isnan(DTCLEAN(:,:,1)))),'color','k','LineWidth',2,'linestyle','none')
+ for nn=1:length(yx)
+     bar(nn,yx(nn),'FaceColor',colors2(nn,:),...
+    'EdgeColor','k',...
+    'LineWidth',0.5);
+ end
+    set(gca,'Xtick',[],'fontsize',12,'box','off')
+ylabel('Lick detection time (ms)','fontsize',15)
+ylim([0 1200])  
+ figure
+ boxplot(DTCLEAN)
+ set(gca,'Xtick',[],'fontsize',12,'box','off')
+ ylim([0 1500])  
+
+%%
+%plot hist of ITI
+numc=4;
+tempcolor=linspace(0,1,numc)';
+colors2=[];
+colors2=[ones(numc,1)  tempcolor(end:-1:1) zeros(numc,1)];
+colors2=[colors2;colors2(3,:)];
+scores=[0 1 2 3];
+figure
+mITI=nan(length(mice),9,4);
+A=nan(length(mice),10,9,4);
+for n=1:length(mice)
+    for curLevel=1:9
+        clear textdata
+    clear ITI
+    textdata=EducageTable.time(EducageTable.mouse_num==n&EducageTable.level==curLevel);
+    
+    if ~isempty(textdata)
+        [clock,ITI,rmStr]=findclock(textdata);
+        ITI(ITI>100)=100;
+    curTable=EducageTable(EducageTable.mouse_num==n&EducageTable.level==curLevel,:);
+    curTable=curTable(1:end-1,:);
+    
+if length(ITI)==length(curTable.score)
+    for s=1:length(scores)
+        curScore=scores(s);
+[a b]=hist(ITI(ITI<111 & curTable.score==curScore),10);
+
+mITI(n,curLevel,s)=nanmean(ITI(curTable.score==curScore));
+
+A(n,:,curLevel,s)=a;
+    end
+end
+    end
+xlim([0 1001])
+    end
+end
+clear a
+B=squeeze(A(:,:,3,3));
+if ~isrow(b)
+    b=b';
+end
+b=[b(1) b b(end)+mean(diff(b)) b(end)+mean(diff(b))];
+
+figure('name','Fig. S7c')
+set(gcf,'color',[1 1 1])
+a=nanmean(squeeze(A(:,:,2,1)));
+a=[0 a a(end) 0];
+
+stairs(b,(a./sum(a))*100,'linewidth',2,'color','b','linestyle','-')
+hold on
+a=nanmean(squeeze(A(:,:,2,2)));
+a=[0 a a(end) 0];
+
+stairs(b,(a./sum(a))*100,'linewidth',2,'color','r','linestyle','-')
+hold on
+a=nanmean(squeeze(A(:,:,2,3)));
+a=[0 a a(end) 0];
+
+stairs(b,(a./sum(a))*100,'linewidth',2,'color','b','linestyle',':')
+hold on
+a=nanmean(squeeze(A(:,:,2,4)));
+a=[0 a a(end) 0];
+
+stairs(b,(a./sum(a))*100,'linewidth',2,'color','r','linestyle',':')
+set(gca,'fontsize',12,'box','off')
+
+
+
+
+
+

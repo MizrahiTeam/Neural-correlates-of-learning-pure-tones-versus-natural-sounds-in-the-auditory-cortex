@@ -1,0 +1,764 @@
+
+load('C:\Users\owner\Dropbox\lab\progs\Maor et al\ePhysVocalization\VocalizationData.mat')
+
+%%
+%plot normalized psth
+
+clear param4
+clear AllPSTH
+edgecol={[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532],[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532]};
+for hh=1:size(T,1)   
+    for ww=1:4       
+AllPSTH(hh,:,ww)=(T.psths{hh,1}{ww}-min(T.psths{hh,1}{ww}))/(max(T.psths{hh,1}{ww})-min(T.psths{hh,1}{ww}));
+
+  end
+end
+%RS
+clear FR_Nrs_2
+clear FR_Ers_2
+for ww=4
+figure ('name','Fig.5C') 
+hold all
+for g=1:length(stimonset2)
+rectangle('Position',[stimonset2(g) 0 stimOffset(g)-stimonset2(g) 0.1],'Curvature',0.4,'EdgeColor',[0.862745106220245 0.862745106220245 0.862745106220245],'faceColor',[0.862745106220245 0.862745106220245 0.862745106220245])
+[pFR(ww,g),hFR(ww,g)]=ranksum(nansum(AllPSTH(Nrs,stimonset2(g):stimOffset(g),ww),2),nansum(AllPSTH(Ers,stimonset2(g):stimOffset(g),ww),2),'alpha',0.05/12);
+if hFR(ww,g)==1
+rectangle('Position',[stimonset2(g) 0 stimOffset(g)-stimonset2(g) 0.1],'Curvature',0.4,'EdgeColor',[0.5 0.5 0.5],'faceColor',[0.5 0.5 0.5])
+end
+
+end
+bar(smooth(nanmean(AllPSTH(Nrs,:,ww)),25),'edgecolor',edgecol{1},'facecolor',edgecol{1})
+fg=bar(smooth(nanmean(AllPSTH(Ers,:,ww)),25),'edgecolor','none','facecolor',edgecol{2})
+
+xlim([0 4000])
+set(gca,'xtick',[0:500:4000],'xticklabel',{},'ytick',[0:5:15],'yticklabel',{},'ylim',[0 0.1])
+
+end
+
+
+%%
+%mean FR for each mouse (pooled)
+colors={[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532],[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532]};
+markers={'+','o','*','.','x','s','d','v','^','>','<','p','h'};
+figure('name','Fig. S6c')
+for gg=1:2
+    tempT=T(T.group==gg,:);
+    
+    hold all
+    
+    tempTF=tempT(tempT.celltype(:,1)=='F',:);
+    FRF=[];
+    for cc=1:size(tempTF,1)
+        FRF(cc,:)=tempTF.FR{cc}(4,:);
+    end
+    if ~isempty(FRF)
+   mFRF=nanmean(FRF,1);
+    end
+
+    tempTR=tempT(tempT.celltype(:,1)=='R',:);
+    FRR=[];
+    for cc=1:size(tempTR,1)
+        FRR(cc,:)=tempTR.FR{cc}(4,:);
+    end
+    if ~isempty(FRR)
+   mFRR=nanmean(FRR,1);
+    end
+  for i=1:length(mFRR)
+  plot(mFRF(i),mFRR(i),'marker',markers{i},'markersize',10,'markeredgecolor',colors{gg},'markerfacecolor','none','linestyle','none')
+  end
+  
+  
+
+xlim([0 14])
+ylim([0 14])
+
+mdl = LinearModel.fit(mFRF,mFRR)
+temp1=table2array(mdl.Coefficients(2,4));
+temp2=table2array(mdl.Coefficients(2,1));
+temp3=mdl.Rsquared.Adjusted;
+title(['m=' num2str(temp2) ' pval=' num2str(temp1) ' R^2=' num2str(temp3)])
+hold on
+plot(mFRF,mdl.Fitted,'color',colors{gg},'linewidth',2)
+end
+
+%%
+%How many cells are responding to training band?
+
+%responsivness_test_trainingBand is non zero if at least one stimulus
+%within the training band elicated evoked response
+for n=1:2
+    temp=T(T.group==n,:);
+    micenum=unique(temp.mouse);
+    for mm=1:length(micenum)
+choose=T.group==n&T.celltype(:,1)=='R'&T.mouse==micenum(mm);
+temp=T(choose,:);
+param=temp{:,'hInTB'};
+RespTB{n}(mm)=sum(param>0)/size(param,1)
+
+    end
+end
+figure('name','Fig. S5a')
+
+[Me,Std,Sizes,Medi]=plot4groups_bars(RespTB)
+hold all
+for n=1:2
+plot(n*ones(1,length(RespTB{n}))-(rand(1,length(RespTB{n}))-1.2)./10,RespTB{n},'Marker','o','MarkerEdgeColor','k','MarkerFaceColor','none','linestyle','none','markersize',8)
+
+end
+xlim([0 4.5])
+%%
+%Life time sparsness 
+clear Sparseness
+clear mFR
+for n=1:2
+    temp=T(T.group==n,:);
+    micenum=unique(temp.mouse);
+    
+choose=T.group==n&T.celltype(:,1)=='R';
+temp=T(choose,:);
+param=temp{:,'FR'};
+for bb=1:length(param)
+    FR=param{bb}(:);
+    nn=length(FR);
+    Alpha=((1/nn)*nansum(FR))^2/((1/nn)*nansum(FR.^2));
+Sparseness{n}(bb)=(1-Alpha)/(1-1/nn);
+mFR{n}(bb)=max(FR);
+    end
+end
+
+figure('name','Fig. 5b')
+
+hold all
+edgecol={[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532]}
+temps=[mFR{1} mFR{2}];
+tempRange=[nanmedian(temps)-nanstd(temps)/2  nanmedian(temps)+nanstd(temps)/2]; 
+inds2work1=mFR{1}>tempRange(1)&mFR{1}<tempRange(2);
+inds2work2=mFR{2}>tempRange(1)&mFR{2}<tempRange(2);
+for n=1:2   
+    plot(mFR{n},Sparseness{n},'marker','o','markeredgecolor',edgecol{n},'markerfacecolor','none','linestyle','none')
+x1=mFR{n};
+y1=Sparseness{n};
+mdl = LinearModel.fit(x1,y1);
+temp1=table2array(mdl.Coefficients(2,4))
+temp2=table2array(mdl.Coefficients(2,1))
+temp3=mdl.Rsquared.Adjusted
+plot(tempRange,ones(1,2),'ko')
+%title(['m=' num2str(temp2) ' pval=' num2str(temp1) ' R^2=' num2str(temp3)])
+plot(x1,mdl.Fitted,'color',edgecol{n})
+
+%set(gca,'xscale','log')
+end
+
+figure('name','Fig. 5b')
+
+[Me,Std,Sizes,Medi,p_RS]=plot4groups_ranksum([{Sparseness{1}(inds2work1)} {Sparseness{2}(inds2work2)}],1)% 
+ylim([0 1])
+%PV-
+clear Sparseness
+clear mFR
+for n=1:2
+    temp=T(T.group==n,:);
+    micenum=unique(temp.mouse);
+    
+choose=T.group==n&T.celltype(:,1)=='F';
+temp=T(choose,:);
+param=temp{:,'FR'};
+for bb=1:length(param)
+    FR=param{bb}(:);
+    nn=length(FR);
+    Alpha=((1/nn)*nansum(FR))^2/((1/nn)*nansum(FR.^2));
+Sparseness{n}(bb)=(1-Alpha)/(1-1/nn);
+mFR{n}(bb)=max(FR);
+    end
+end
+
+
+edgecol={[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532]}
+temps=[mFR{1} mFR{2}];
+tempRange=[nanmedian(temps)-nanstd(temps)/2  nanmedian(temps)+nanstd(temps)/2]; 
+inds2work1=mFR{1}>tempRange(1)&mFR{1}<tempRange(2);
+inds2work2=mFR{2}>tempRange(1)&mFR{2}<tempRange(2);
+for n=1:2   
+    plot(mFR{n},Sparseness{n},'marker','o','markeredgecolor',edgecol{n},'markerfacecolor','none','linestyle','none')
+x1=mFR{n};
+y1=Sparseness{n};
+end
+
+figure('name','Fig. S6b')
+
+[Me,Std,Sizes,Medi,p_RS]=plot4groups_ranksum([{Sparseness{1}(inds2work1)} {Sparseness{2}(inds2work2)}],1)% 
+ylim([0 1])
+%% Population sparsness
+clear H
+for n=1:2
+    temp=T(T.group==n,:);
+    micenum=unique(temp.mouse);
+    
+choose=T.group==n&T.celltype(:,1)=='R';
+temp=T(choose,:);
+param=temp{:,'h'};
+for bb=1:length(param)
+    H{n}(bb,:)=sum(param{bb})>0;
+end
+mH(n,:)=mean(H{n});
+end
+figure('name','Fig. 5d')
+
+bar(1-mH','grouped')
+% figure
+% [Me,Std,Sizes,Medi,p_RS]=plot4groups_ranksum([{1-mH(1,:)} {1-mH(2,:)}],1)% 
+
+
+%%
+%correlation of all psth
+clear param4
+for hh=1:size(T,1)
+  for rr=1:12      
+%    
+    for ww=1:4
+        for zz=1:4
+        clear s2
+
+smoothPsth1=smooth(T.psths{hh,1}{ww},9);
+smoothPsth2=smooth(T.psths{hh,1}{zz},9);
+
+ actual=smoothPsth1(sylinds{rr});
+ estimate=smoothPsth2(sylinds{rr});
+ 
+ 
+if isrow(actual)
+    actual=actual';
+    estimate=estimate';
+end
+s2=pearSON(actual,estimate);
+param4(hh,rr,ww,zz)=s2;
+        end
+    end
+    end
+    
+end
+figure('name','Fig. S5b')
+allCorrMat=[];
+clims=([0 1])
+for rr=1:12
+subplot(8,12,rr)
+corMat=squeeze(nanmean(squeeze(param4(Nrs,rr,:,:)),1));
+allCorrMat=[allCorrMat corMat];
+imagesc(corMat,clims);
+colormap(hot(30))
+%title([num2str(nanmean(corMat(find(triu(corMat,1))))) '+' num2str(nanstd(corMat(find(triu(corMat,1)))))])
+set(gca,'xtick',[],'ytick',[])
+end
+allCorrMat=[];
+
+for rr=1:12
+subplot(8,12,rr+12)
+corMat=squeeze(nanmean(squeeze(param4(Ers,rr,:,:)),1));
+allCorrMat=[allCorrMat corMat];
+
+imagesc(corMat,clims);
+colormap(hot(30))
+%title([num2str(nanmean(corMat(find(triu(corMat,1))))) '+' num2str(nanstd(corMat(find(triu(corMat,1)))))])
+set(gca,'xtick',[],'ytick',[])
+end
+
+% correlation on all syl
+clear param5
+for hh=1:size(T,1)
+  
+%    
+    for ww=1:4
+        for zz=1:4
+        clear s2
+
+smoothPsth1=smooth(T.psths{hh,1}{ww},9);
+smoothPsth2=smooth(T.psths{hh,1}{zz},9);
+
+ actual=smoothPsth1(sylinds2);
+ estimate=smoothPsth2(sylinds2);
+ if isrow(actual)
+    actual=actual';
+    estimate=estimate';
+end
+s2=pearSON(actual,estimate);
+param5(hh,ww,zz)=s2;
+        end
+    end
+    
+end
+
+%RS
+figure('name','Fig. 6a')
+
+clims=([0 1]);
+corMat=squeeze(nanmean(param5(Nrs,:,:),1));
+imagesc(corMat,clims);
+colormap(hot(30))
+colorbar
+title([num2str(nanmean(corMat(find(triu(corMat,1))))) '+' num2str(nanstd(corMat(find(triu(corMat,1)))))])
+
+set(gca,'xtick',[],'ytick',[])
+
+figure('name','Fig. 6a')
+
+clims=([0 1]);
+corMat=squeeze(nanmean(param5(Ers,:,:),1));
+imagesc(corMat,clims);
+colormap(hot(30))
+colorbar
+title([num2str(nanmean(corMat(find(triu(corMat,1))))) '+' num2str(nanstd(corMat(find(triu(corMat,1)))))])
+set(gca,'xtick',[],'ytick',[])
+
+edgecol={[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532],[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532]};
+
+figure('name','Fig. 6b')
+
+hold all
+corMat=squeeze(nanmean(param5(Nrs,:,:),1));
+corMatS=squeeze(nanstd(param5(Nrs,:,:),1));
+
+%plot(corMat(4,1:3),'color',edgecol{1},'linewidth',2)
+errorbar(1:3,corMat(4,1:3),corMatS(4,1:3)./sqrt(sum(Nrs)),'color',edgecol{1},'linewidth',2)
+corMat2=squeeze(nanmean(param5(Ers,:,:),1));
+corMat2S=squeeze(nanstd(param5(Ers,:,:),1));
+
+%plot(corMat2(4,1:3),'color',edgecol{2},'linewidth',2)
+errorbar(1:3,corMat2(4,1:3),corMat2S(4,1:3)./sqrt(sum(Ers)),'color',edgecol{2},'linewidth',2)
+
+set(gca,'xtick',[1:3],'ytick',[0:0.2:0.6],'ylim',[0 0.6])
+
+
+
+figure('name','Fig. 6a')
+
+clear pVal
+for ww=1:4
+        for zz=1:4
+           [temp pVal(ww,zz)]=ttest2(param5(Nrs,ww,zz),param5(Ers,ww,zz));
+           %             [pVal(ww,zz) temp ]=ranksum(param5(Nrs,ww,zz),param5(Ers,ww,zz));
+
+        end
+end
+
+
+imagesc(pVal,clims);
+colormap(gray(30))
+colorbar
+set(gca,'xtick',[],'ytick',[])
+hold all
+for ww=1:4
+        for zz=1:4
+            if pVal(ww,zz)<0.05/6
+            plot(ww,zz,'marker','*','markersize',20,'markerfacecolor',[1 1 1],'markeredgecolor',[1 1 1],'LineWidth',4)
+            end
+        end
+end
+%%
+%correlation of all psth PV
+%PV
+figure('name','Fig. S8f')
+
+clims=([0 1]);
+corMat=squeeze(nanmean(param5(Nfs,:,:),1));
+imagesc(corMat,clims);
+colormap(hot(30))
+colorbar
+title([num2str(nanmean(corMat(find(triu(corMat,1))))) '+' num2str(nanstd(corMat(find(triu(corMat,1)))))])
+
+set(gca,'xtick',[],'ytick',[])
+
+figure('name','Fig. S8f')
+
+clims=([0 1]);
+corMat=squeeze(nanmean(param5(Efs,:,:),1));
+imagesc(corMat,clims);
+colormap(hot(30))
+colorbar
+title([num2str(nanmean(corMat(find(triu(corMat,1))))) '+' num2str(nanstd(corMat(find(triu(corMat,1)))))])
+set(gca,'xtick',[],'ytick',[])
+
+edgecol={[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532],[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532]};
+
+figure('name','Fig. S8g')
+
+hold all
+corMat=squeeze(nanmean(param5(Nfs,:,:),1));
+corMatS=squeeze(nanstd(param5(Nfs,:,:),1));
+
+%plot(corMat(4,1:3),'color',edgecol{1},'linewidth',2)
+errorbar(1:3,corMat(4,1:3),corMatS(4,1:3)./sqrt(sum(Nrs)),'color',edgecol{1},'linewidth',2)
+corMat2=squeeze(nanmean(param5(Efs,:,:),1));
+corMat2S=squeeze(nanstd(param5(Efs,:,:),1));
+
+%plot(corMat2(4,1:3),'color',edgecol{2},'linewidth',2)
+errorbar(1:3,corMat2(4,1:3),corMat2S(4,1:3)./sqrt(sum(Ers)),'color',edgecol{2},'linewidth',2)
+
+set(gca,'xtick',[1:3],'ytick',[0:0.2:0.6],'ylim',[0 0.6])
+
+
+
+figure('name','Fig. S8f')
+
+clear pVal
+for ww=1:4
+        for zz=1:4
+           [temp pVal(ww,zz)]=ttest2(param5(Nfs,ww,zz),param5(Efs,ww,zz));
+           %             [pVal(ww,zz) temp ]=ranksum(param5(Nrs,ww,zz),param5(Ers,ww,zz));
+
+        end
+end
+
+
+imagesc(pVal,clims);
+colormap(gray(30))
+colorbar
+set(gca,'xtick',[],'ytick',[])
+hold all
+for ww=1:4
+        for zz=1:4
+            if pVal(ww,zz)<0.05/6
+            plot(ww,zz,'marker','*','markersize',20,'markerfacecolor',[1 1 1],'markeredgecolor',[1 1 1],'LineWidth',4)
+            end
+        end
+end
+%%
+%d' on all syllables
+clear param6
+for hh=1:size(T,1)
+  
+%    
+    for ww=1:4
+        for zz=1:4
+clear stim1
+clear stim2
+for rr=1:16
+ stim1(rr)=nanmean(T.SortedRPtempAll{hh,1}{ww}(rr,sylinds2));
+ stim2(rr)=nanmean(T.SortedRPtempAll{hh,1}{zz}(rr,sylinds2));
+end
+ dprime=dprimeRespons(stim1,stim2);
+ if isnan(dprime)
+                dprime=0;
+   end
+param6(hh,ww,zz)=dprime;
+
+ 
+        end
+    end
+    
+end
+
+
+%d' on all syllables per mouse-taking d' of last 3 40 trials bins
+clear medp
+clear Sdp
+for n=1:9
+   temp = cellfun(@(x) x(end-2:end), dPrime{n}(1:4), 'UniformOutput', false);
+      medp(n,:) = cell2mat(cellfun(@nanmean, temp, 'UniformOutput', false));
+      Sdp(n,:) = cell2mat(cellfun(@nanstd, temp, 'UniformOutput', false))/sqrt(3);
+
+end
+
+
+
+for mm=1:6
+    chooseInds=find(T.group==2&T.mouse==mm&T.celltype(:,1)=='R');
+    
+clims=([0 1]);
+corMat=squeeze(nanmean(param6(chooseInds,:,:),1));
+corMatSTD=squeeze(nanstd(param6(chooseInds,:,:),1));
+
+% subplot(3,2,mm)
+% imagesc(corMat,clims);
+% colormap(hot(30))
+% colorbar
+% title([num2str(nanmean(corMat(find(triu(corMat,1))))) '+' num2str(nanstd(corMat(find(triu(corMat,1)))))])
+
+avCor2(mm)=corMat(4,2);
+avCor2STD(mm)=corMatSTD(4,2);
+
+end
+miceinRecordings=[2:5 8 9];
+x1=medp(miceinRecordings,3);
+y1=avCor2;
+  figure('name','Fig. S7b')
+
+  hold all
+for  mm=1:6
+ plot(y1(mm),x1(mm),'marker','square','markeredgecolor','k','markerfacecolor','k','markersize',8)
+plot([y1(mm) y1(mm)],[x1(mm)-Sdp(mm,3) x1(mm)+Sdp(mm,3)],'color','k')
+plot([y1(mm)-avCor2STD(mm) y1(mm)+avCor2STD(mm)],[x1(mm) x1(mm)],'color','k')
+
+end
+RegressionFun(y1,x1)
+
+
+%%
+%group comaprission
+clear param
+clear param2
+clear p_RS
+clear p_FS
+clear Me
+clear Std
+field_names=fieldnames(T);
+what2plot=field_names([2 4 5 15:17 21]);
+
+    Nrs=T.group==1&T.celltype(:,1)=='R';
+    Nfs=T.group==1&T.celltype(:,1)=='F';
+    Ers=T.group==2&T.celltype(:,1)=='R';
+    Efs=T.group==2&T.celltype(:,1)=='F'; 
+    Cgroup={Nrs,Nfs,Ers,Efs};
+
+for pp=1:length(what2plot);
+    param=T{:,what2plot(pp)};
+    %    param=T{:,'coeff'};
+if iscell(param)%if param==FR/latency- choose only significant syllable
+H=T{:,'h'};
+C= cellfun(@(x,y) x.*y, param,H, 'UniformOutput',false);
+for bb=1:length(C)
+param2(bb)=nanmean(C{bb}(C{bb}>0));
+%param2(bb)=nanmean(C{bb}(3,C{bb}(3,:)>0));
+
+end
+figure
+    set(gcf,'color',[1 1 1])
+[Me(pp,:),Std(pp,:),Sizes,Medi,p_RS(pp),p_FS(pp),p_N,p_E]=plot4groups_ranksum({param2(Nrs),param2(Ers),param2(Nfs),param2(Efs)},1);
+title(what2plot{pp})
+else
+    figure
+    set(gcf,'color',[1 1 1])
+[Me(pp,:),Std(pp,:),Sizes,Medi,p_RS(pp),p_FS(pp),p_N,p_E]=plot4groups_ranksum({param(Nrs),param(Ers),param(Nfs),param(Efs)},1);
+title(what2plot{pp})
+end
+end
+
+%%  %SVM for RS
+
+    
+   clear param6
+for hh=1:size(T,1)
+  for rr=1:12      
+%    
+    for ww=1:4
+        
+        
+for r=1:16
+ param6(hh,rr,ww,r)=nanmean(T.SortedRPtempAll{hh,1}{ww}(r,sylinds{rr}));
+end
+
+        end
+    end
+end
+
+%Naive
+
+numRep=1000;
+sylNum=12;
+i=0
+genError=zeros(numRep,3,sylNum);
+numT=16;
+    
+        Y=[repmat({'N'},numT,1);repmat({'T'},numT,1)];
+maxCellN=37%# of cells to use 
+
+for ww=1:3
+   
+    for ii=1:numRep
+                Xrnd=[];
+                for tt=1:maxCellN
+                 RandTT(:,tt)=randperm(numT);
+             end
+         for rr=1:sylNum
+
+             X=[squeeze(param6(Nrs,rr,ww,:))'];XT=squeeze(param6(Nrs,rr,4,:))' ;
+             X=X(:,1:maxCellN);XT=XT(:,1:maxCellN);
+             clear permX 
+             clear permXT
+             for tt=1:maxCellN
+                 permX(:,tt)=X(RandTT(:,tt),tt);  permXT(:,tt)=XT(RandTT(:,tt),tt);
+             end
+                           Xrnd=[Xrnd [permX;permXT]];  
+        clear CVSVMModel
+        
+           CVSVMModel = fitcsvm(Xrnd,Y,'Standardize',true,...
+     'ClassNames',{'N','T'},'CrossVal','on');
+genError(ii,ww,rr) = kfoldLoss(CVSVMModel);
+i=i+1
+
+    end
+
+
+end
+end
+MgenError=squeeze(nanmean(genError,1));
+SgenError=squeeze(nanstd(genError,1));
+
+%Expert
+ie=0
+genErrorE=zeros(numRep,3,sylNum);
+
+for ww=1:3
+   
+    for ii=1:numRep
+                Xrnd=[];
+                for tt=1:maxCellN
+                 RandTT(:,tt)=randperm(numT);
+             end
+         for rr=1:sylNum
+
+             X=[squeeze(param6(Ers,rr,ww,:))'];XT=squeeze(param6(Ers,rr,4,:))' ;
+             X=X(:,1:maxCellN);XT=XT(:,1:maxCellN);
+             clear permX 
+             clear permXT
+             for tt=1:maxCellN
+                 permX(:,tt)=X(RandTT(:,tt),tt);  permXT(:,tt)=XT(RandTT(:,tt),tt);
+             end
+                           Xrnd=[Xrnd [permX;permXT]];  
+        clear CVSVMModel
+        
+           CVSVMModel = fitcsvm(Xrnd,Y,'Standardize',true,...
+     'ClassNames',{'N','T'},'CrossVal','on');
+genErrorE(ii,ww,rr) = kfoldLoss(CVSVMModel);
+ie=ie+1
+
+    end
+
+
+end
+end
+MgenErrorE=squeeze(nanmean(genErrorE,1));
+SgenErrorE=squeeze(nanstd(genErrorE,1));
+
+clear p
+clear temp
+for ww=1:size(genErrorE,2)
+for rr=1:size(genErrorE,3)
+ [ temp(ww,rr),p(ww,rr)]=ranksum(genError(:,ww,rr),genErrorE(:,ww,rr));   
+end
+end
+
+edgecol={[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532],[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532]};
+numRep=1000;
+for n=1:3
+    figure
+    hold all
+    errorbar(1:size(MgenError,2),(1-MgenError(n,:)),(1-SgenError(n,:))./sqrt(numRep),'color',edgecol{1},'linewidth',2); 
+     errorbar(1:size(MgenErrorE,2),(1-MgenErrorE(n,:)),(1-SgenErrorE(n,:))./sqrt(numRep),'color',edgecol{2},'linewidth',2); 
+set(gca,'xtick',[0:2:12],'xticklabel',{},'ytick',[0:0.5:1],'yticklabel',{},'ylim',[0.3 1])
+end
+
+%%  %SVM for FS
+    
+   clear param6
+for hh=1:size(T,1)
+  for rr=1:12      
+%    
+    for ww=1:4
+        
+        
+for r=1:16
+ param6(hh,rr,ww,r)=nanmean(T.SortedRPtempAll{hh,1}{ww}(r,sylinds{rr}));
+end
+
+        end
+    end
+end
+
+%Naive
+
+numRep=1000;
+sylNum=12;
+i=0
+genError=zeros(numRep,3,sylNum);
+numT=16;
+    
+        Y=[repmat({'N'},numT,1);repmat({'T'},numT,1)];
+maxCellN=17%# of cells to use 
+for ww=1:3
+   
+    for ii=1:numRep
+                Xrnd=[];
+                for tt=1:maxCellN
+                 RandTT(:,tt)=randperm(numT);
+             end
+         for rr=1:sylNum
+
+             X=[squeeze(param6(Nfs,rr,ww,:))'];XT=squeeze(param6(Nfs,rr,4,:))' ;
+             X=X(:,1:maxCellN);XT=XT(:,1:maxCellN);
+             clear permX 
+             clear permXT
+             for tt=1:maxCellN
+                 permX(:,tt)=X(RandTT(:,tt),tt);  permXT(:,tt)=XT(RandTT(:,tt),tt);
+             end
+                           Xrnd=[Xrnd [permX;permXT]];  
+        clear CVSVMModel
+        
+           CVSVMModel = fitcsvm(Xrnd,Y,'Standardize',true,...
+     'ClassNames',{'N','T'},'CrossVal','on');
+genError(ii,ww,rr) = kfoldLoss(CVSVMModel);
+i=i+1
+
+    end
+
+
+end
+end
+MgenError=squeeze(nanmean(genError,1));
+SgenError=squeeze(nanstd(genError,1));
+
+%Expert
+ie=0
+genErrorE=zeros(numRep,3,sylNum);
+
+for ww=1:3
+   
+    for ii=1:numRep
+                Xrnd=[];
+                for tt=1:maxCellN
+                 RandTT(:,tt)=randperm(numT);
+             end
+         for rr=1:sylNum
+
+             X=[squeeze(param6(Efs,rr,ww,:))'];XT=squeeze(param6(Efs,rr,4,:))' ;
+             X=X(:,1:maxCellN);XT=XT(:,1:maxCellN);
+             clear permX 
+             clear permXT
+             for tt=1:maxCellN
+                 permX(:,tt)=X(RandTT(:,tt),tt);  permXT(:,tt)=XT(RandTT(:,tt),tt);
+             end
+                           Xrnd=[Xrnd [permX;permXT]];  
+        clear CVSVMModel
+        
+           CVSVMModel = fitcsvm(Xrnd,Y,'Standardize',true,...
+     'ClassNames',{'N','T'},'CrossVal','on');
+genErrorE(ii,ww,rr) = kfoldLoss(CVSVMModel);
+ie=ie+1
+
+    end
+
+
+end
+end
+MgenErrorE=squeeze(nanmean(genErrorE,1));
+SgenErrorE=squeeze(nanstd(genErrorE,1));
+
+
+clear p
+clear temp
+for ww=1:size(genErrorE,2)
+for rr=1:size(genErrorE,3)
+ [ temp(ww,rr),p(ww,rr)]=ranksum(genError(:,ww,rr),genErrorE(:,ww,rr));   
+end
+end
+
+edgecol={[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532],[1 0.200000002980232 0.200000002980232],[0 0.447058826684952 0.74117648601532]};
+for n=1:3
+    figure
+    hold all
+    errorbar(1:size(MgenError,2),(1-MgenError(n,:)),(1-SgenError(n,:))./sqrt(numRep),'color',edgecol{1},'linewidth',2); 
+     errorbar(1:size(MgenErrorE,2),(1-MgenErrorE(n,:)),(1-SgenErrorE(n,:))./sqrt(numRep),'color',edgecol{2},'linewidth',2); 
+set(gca,'xtick',[0:2:12],'xticklabel',{},'ytick',[0:0.5:1],'yticklabel',{},'ylim',[0 1])
+
+legend({'N','E'})
+end
+
